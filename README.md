@@ -50,22 +50,32 @@ docker compose exec kali-agent bash
 claude
 ```
 
-## Routing through Burp / a host proxy
+## Inspecting / tampering with traffic (in-container)
 
-`host.docker.internal:8080` resolves to your host on Mac/Windows; the
-`extra_hosts` line in `docker-compose.yml` makes it work on Linux too.
+The image includes `mitmproxy` / `mitmweb` / `mitmdump` — a Burp-style
+HTTP history, inspector, intercept, and replay, all running inside the
+container. No host proxy required.
 
 Inside the container:
 
 ```bash
-export HTTPS_PROXY=http://host.docker.internal:8080
-export HTTP_PROXY=http://host.docker.internal:8080
-export NO_PROXY=localhost,127.0.0.1
+mitmweb --listen-host 0.0.0.0 --web-host 0.0.0.0
+# in another shell, point tools at the local proxy:
+export HTTPS_PROXY=http://127.0.0.1:8080
+export HTTP_PROXY=http://127.0.0.1:8080
 ```
 
-For TLS interception, drop your proxy's CA into `./certs/` and
-uncomment the volume line in `docker-compose.yml`, then inside the
-container: `sudo update-ca-certificates`.
+To browse the UI from the host, uncomment the `ports: ["8081:8081"]`
+block in `docker-compose.yml`, then open `http://localhost:8081`.
+
+For TLS interception, on first run mitmproxy writes a CA to
+`~/.mitmproxy/`; trust it system-wide:
+
+```bash
+sudo cp ~/.mitmproxy/mitmproxy-ca-cert.pem \
+        /usr/local/share/ca-certificates/mitmproxy.crt
+sudo update-ca-certificates
+```
 
 ## Daily commands
 
@@ -103,4 +113,4 @@ the operator is responsible for staying inside scope.
 
 ## License
 
-MIT (or pick your own — replace this line).
+MIT

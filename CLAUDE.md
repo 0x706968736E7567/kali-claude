@@ -109,10 +109,21 @@ Toolkit) `webshells` `weevely` (PHP) `laudanum` (multi-language webshells)
 ### Web3 / smart contracts (if added)
 `forge` `cast` `anvil` (Foundry) `slither`
 
-### Proxy / interception
-`mitmproxy` `mitmweb` `mitmdump` — for Burp on host: `export
-HTTPS_PROXY=http://host.docker.internal:8080` (matching `HTTP_PROXY`,
-`NO_PROXY=localhost,127.0.0.1`).
+### Proxy / interception (Burp-like, all in-container)
+- `mitmweb` — browser UI for live HTTP history, inspect, tamper, replay.
+  Run with `mitmweb --listen-host 0.0.0.0 --web-host 0.0.0.0` and (if the
+  port is forwarded in compose) browse `http://localhost:8081` on the
+  host. Replaces Burp Proxy + Repeater + HTTP history for most workflows.
+- `mitmproxy` — TUI variant; same engine, no browser needed.
+- `mitmdump` — non-interactive capture (`mitmdump -w flows.mitm`) and
+  scripting (`-s script.py` for inline request/response rewriting).
+- Pointing tools at it: `HTTPS_PROXY=http://127.0.0.1:8080
+  HTTP_PROXY=http://127.0.0.1:8080 curl ...` (mitm listens on 8080 by
+  default inside the container).
+- TLS interception: first launch generates a CA at `~/.mitmproxy/`;
+  `sudo cp ~/.mitmproxy/mitmproxy-ca-cert.pem
+  /usr/local/share/ca-certificates/mitmproxy.crt && sudo
+  update-ca-certificates` to trust it system-wide for CLI tools.
 
 ### Tunnels / pivots
 `openvpn` `vpnc` `proxychains4` `proxytunnel` `ptunnel` `udptunnel`
@@ -137,8 +148,9 @@ HTTPS_PROXY=http://host.docker.internal:8080` (matching `HTTP_PROXY`,
 - **Categorize URL piles** with `gf`: `cat urls.txt | gf xss`, `gf ssrf`,
   `gf sqli`, `gf redirect`. Patterns at `~/.gf/`.
 - **Templates updates** for long engagements: `nuclei -ut`.
-- **Burp on host**: routes through `host.docker.internal:8080`; trust
-  corp CA via `sudo update-ca-certificates` after mounting bundle.
+- **Inspect/tamper traffic**: start `mitmweb` inside the container, point
+  CLI tools at `http://127.0.0.1:8080`. Browser UI on host:8081 if the
+  port is forwarded. No host proxy needed.
 - **Privilege**: `sudo` only when needed (`nmap -sS`, raw sockets,
   binding <1024). Default to unprivileged.
 
