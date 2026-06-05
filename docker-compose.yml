@@ -1,0 +1,34 @@
+services:
+  kali-agent:
+    build: .
+    image: kali-claude
+    container_name: kali_workspace
+    stdin_open: true
+    tty: true
+    cap_add:
+      - NET_ADMIN     # iptables, routing, interface config
+      - NET_RAW       # raw packets (nmap -sS, scapy)
+      - SYS_PTRACE    # debug/RE attached processes (gdb, frida, strace)
+    # host.docker.internal works on Mac/Windows out of the box; the
+    # extra_hosts line below makes it work on Linux too. Burp on the host
+    # is reachable at http://host.docker.internal:8080 from inside.
+    extra_hosts:
+      - "host.docker.internal:host-gateway"
+    environment:
+      - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
+      # Uncomment to route HTTP through host Burp by default:
+      # - HTTPS_PROXY=http://host.docker.internal:8080
+      # - HTTP_PROXY=http://host.docker.internal:8080
+      # - NO_PROXY=localhost,127.0.0.1
+    volumes:
+      - ./workspace:/home/operator/workspace
+      - ./loot:/home/operator/loot
+      # Persist Claude Code auth + history across container restarts.
+      # Real paths are ~/.claude/ and ~/.claude.json (NOT ~/.config/claude-code).
+      - claude-config:/home/operator/.claude
+      # Mount a CA bundle (e.g. Burp's Portswigger CA) if you want it trusted
+      # inside the container. After mounting, run `sudo update-ca-certificates`.
+      # - ./certs/ca-bundle.pem:/usr/local/share/ca-certificates/ca-bundle.crt:ro
+
+volumes:
+  claude-config:

@@ -1,0 +1,27 @@
+# Engagement output — never commit findings, scan results, target data
+workspace/
+loot/
+
+# Mounted CA bundles, keys, tokens
+certs/
+*.pem
+*.key
+*.crt
+*.p12
+*.pfx
+
+# Local env / secrets
+.env
+.env.*
+!.env.example
+
+# Editor / OS noise
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*~
+
+# Claude state if anyone runs claude on the host inside this dir
+.claude/
+.claude.json
