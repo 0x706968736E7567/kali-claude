@@ -34,8 +34,18 @@ pick the one whose strengths fit the target — don't run them all.
 - Screenshots: `gowitness`
 - Content discovery: `feroxbuster` `dirsearch` `gobuster` `dirb` `ffuf` `wfuzz`
 - Param discovery: `arjun` `paramspider`
-- Wordlists: `$SECLISTS` (= /usr/share/seclists), `$PAYLOADS`
-  (= /usr/share/payloadsallthethings), `/usr/share/wordlists/`
+- Wordlists shipped on image:
+  - `/usr/share/wordlists/` — Kali defaults (`rockyou.txt.gz`, dirb common, dirbuster, fern, metasploit, nmap, wfuzz)
+  - `/usr/share/payloadsallthethings/` — PayloadsAllTheThings (XSS/SSRF/SQLi/SSTI payload reference; treat as docs)
+- **SecLists is NOT bundled** (image-size tradeoff). Pull on demand:
+  - Single file (fastest, usually what you want):
+    `curl -sLO https://raw.githubusercontent.com/danielmiessler/SecLists/master/Discovery/Web-Content/raft-medium-directories.txt`
+  - Whole repo (only if you need many files):
+    `git clone --depth=1 https://github.com/danielmiessler/SecLists ~/seclists`
+  - Common picks: `Discovery/DNS/subdomains-top1million-110000.txt`,
+    `Discovery/Web-Content/common.txt`, `Discovery/Web-Content/raft-large-directories.txt`,
+    `Passwords/Common-Credentials/10-million-password-list-top-10000.txt`,
+    `Fuzzing/special-chars.txt`
 
 ### Web vuln scanning
 - Generic: `nuclei` (templates at `$NUCLEI_TEMPLATES`, pre-pulled)

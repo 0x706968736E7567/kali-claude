@@ -27,14 +27,17 @@ RUN apt-get update && apt-get -y dist-upgrade \
       feroxbuster dirsearch findomain assetfinder \
       arjun xsstrike crlfuzz dnstwist dnsgen \
       \
-      # Wordlists & payload corpora
-      seclists payloadsallthethings \
+      # Payload reference corpus (PayloadsAllTheThings — XSS/SSRF/SQLi/etc).
+      # SecLists intentionally NOT bundled — too large (~700MB) and most jobs
+      # only need a specific file. Fetch on demand from GitHub when needed.
+      payloadsallthethings \
       \
       # Mobile reverse engineering
       apktool jadx \
       \
-      # SAST / secrets
-      semgrep gitleaks trufflehog \
+      # SAST / secrets (semgrep installed via pipx below — not in apt)
+      gitleaks trufflehog \
+      python3-pip pipx \
       \
       # Operator quality of life
       ca-certificates curl wget git gnupg sudo \
@@ -67,10 +70,26 @@ RUN npx -y playwright@latest install chromium
 # Pre-pull nuclei templates for offline-fast first run
 RUN nuclei -update-templates -silent || true
 
+# ---- Python tools not packaged in Kali apt --------------------------------
+# pipx isolates each tool in its own venv; binaries land in /usr/local/bin
+# so they're on PATH for the non-root operator too. PyPI tools first, then
+# GitHub-only tools via git URLs. `|| true` so a single transient failure
+# (mirror hiccup, repo rename) doesn't tank a 15-minute build.
+ENV PIPX_HOME=/opt/pipx PIPX_BIN_DIR=/usr/local/bin
+RUN pipx install semgrep \
+ && pipx install frida-tools \
+ && (pipx install git+https://github.com/s0md3v/Corsy        || true) \
+ && (pipx install git+https://github.com/devanshbatham/paramspider || true) \
+ && (pipx install git+https://github.com/ticarpi/jwt_tool    || true)
+
 # ---- 3. Non-root operator user --------------------------------------------
-RUN useradd -m -s /bin/bash operator \
+# Split into two RUNs so a chown failure on optional dirs can't silently
+# swallow a useradd failure (which would manifest later as "user not found"
+# at the USER directive).
+RUN useradd -m -s /bin/bash -g operator operator \
  && echo "operator ALL=(ALL) NOPASSWD:ALL" >> /etc/sudoers \
- && chown -R operator:operator /opt/playwright /root/nuclei-templates 2>/dev/null || true
+ && id operator
+RUN chown -R operator:operator /opt/playwright /root/nuclei-templates /opt/pipx 2>/dev/null || true
 
 USER operator
 WORKDIR /home/operator/workspace
