@@ -8,8 +8,28 @@ services:
     cap_add:
       - NET_ADMIN     # iptables, routing, interface config
       - NET_RAW       # raw packets (nmap -sS, scapy)
-      - SYS_PTRACE    # debug/RE attached processes (gdb, frida, strace)
+      # SYS_PTRACE is only needed for debugging/RE (gdb, frida, strace attaching
+      # to other processes). It's off by default to keep the attack surface
+      # smaller; uncomment it only for reverse-engineering sessions.
+      # - SYS_PTRACE
+    # NOTE on no-new-privileges: deliberately NOT set. The operator relies on
+    # passwordless sudo (the bundled tools need root), and `no-new-privileges`
+    # would block sudo's setuid escalation, breaking the box. The container
+    # boundary — not in-container privilege separation — is the trust boundary.
+    #
+    # Optional host protection for long-running captures (mitmweb, responder):
+    # mem_limit: 8g
+    # cpus: "4"
+    # pids_limit: 4096
     environment:
+      # The API key is injected into the container environment and is therefore
+      # readable by EVERY process in the container (all tools + the shell MCP
+      # server) via $ANTHROPIC_API_KEY or /proc/<pid>/environ. Since this box is
+      # pointed at untrusted/hostile targets, prompt-injected content could drive
+      # the agent to exfiltrate it. Prefer `claude` interactive login instead:
+      # its credentials persist in the claude-config volume below, so you can
+      # leave ANTHROPIC_API_KEY unset after the first login. If you do set it,
+      # treat it as exposed and rotate it after risky engagements.
       - ANTHROPIC_API_KEY=${ANTHROPIC_API_KEY:-}
     # Uncomment to expose mitmweb's browser UI on the host (http://localhost:8081)
     # for Burp-style inspection/tamper/replay of traffic captured INSIDE the
@@ -18,7 +38,15 @@ services:
     #   - "8081:8081"
     volumes:
       - ./workspace:/home/operator/workspace
+      # Re-expose the MCP config the ./workspace dir mount would otherwise SHADOW.
+      # claude runs from /home/operator/workspace and needs to find .mcp.json
+      # there; without this the playwright + shell MCP servers never register.
+      - ./.mcp.json:/home/operator/workspace/.mcp.json:ro
       - ./loot:/home/operator/loot
+      # Mount the operator brief read-only from the repo so it tracks source,
+      # can't be tampered with from inside the container, and isn't shadowed by
+      # the claude-config volume below. This layers over the named volume's copy.
+      - ./CLAUDE.md:/home/operator/.claude/CLAUDE.md:ro
       # Persist Claude Code auth + history across container restarts.
       - claude-config:/home/operator/.claude
 
