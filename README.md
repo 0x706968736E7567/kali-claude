@@ -20,8 +20,9 @@ host's proxy if you want.
   `dpkg -l` in the container for the authoritative list.
 - **Runtime**: Node.js LTS, Claude Code CLI, Playwright + Chromium (npm/pipx
   packages pinned to exact versions for reproducible rebuilds)
-- **MCP servers** (via project-scoped `.mcp.json`, installed into the image and
-  invoked by binary name — no runtime download):
+- **MCP servers** (project-scoped `.mcp.json` refreshed into the workspace by
+  the image entrypoint on each start, installed into the image and invoked by
+  binary name — no runtime download):
   - `@playwright/mcp` — headless browser automation
   - `@wonderwhy-er/desktop-commander` — extended fs/shell ops
 - **Operator brief**: `CLAUDE.md` mounted read-only from the repo (and baked
@@ -102,7 +103,8 @@ across container restarts so you don't re-login each time.
 .
 ├── Dockerfile             # base + tools + Node + MCP servers
 ├── docker-compose.yml     # caps, networking, volumes, mounts
-├── .mcp.json              # MCP server registrations (bind-mounted in)
+├── entrypoint.sh          # refreshes .mcp.json into the workspace on container start
+├── .mcp.json              # MCP server registrations (canonical copy; refreshed into ~/workspace at startup)
 ├── CLAUDE.md              # operator brief (bind-mounted read-only into the image's ~/.claude)
 ├── .env.example           # template for local secrets (gitignored)
 ├── .gitignore             # keeps engagement output + secrets out of git

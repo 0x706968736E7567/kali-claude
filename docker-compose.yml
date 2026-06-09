@@ -38,10 +38,11 @@ services:
     #   - "8081:8081"
     volumes:
       - ./workspace:/home/operator/workspace
-      # Re-expose the MCP config the ./workspace dir mount would otherwise SHADOW.
-      # claude runs from /home/operator/workspace and needs to find .mcp.json
-      # there; without this the playwright + shell MCP servers never register.
-      - ./.mcp.json:/home/operator/workspace/.mcp.json:ro
+      # NOTE: the project .mcp.json is NOT mounted here. The ./workspace bind
+      # mount would shadow any baked-in copy, and Docker can't mount a single
+      # file inside a bind-mounted dir (fails on Docker Desktop virtiofs). The
+      # image's entrypoint instead seeds ~/workspace/.mcp.json from a stashed
+      # copy at startup, so the MCP servers register without a fragile mount.
       - ./loot:/home/operator/loot
       # Mount the operator brief read-only from the repo so it tracks source,
       # can't be tampered with from inside the container, and isn't shadowed by

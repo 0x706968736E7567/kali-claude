@@ -137,12 +137,27 @@ WORKDIR /home/operator/workspace
 RUN nuclei -update-templates -ud /home/operator/nuclei-templates -silent || true
 
 # ---- 4. Project files (MCP config + operator brief) ----------------------
-# These are also delivered via read-only bind mounts in docker-compose.yml (so
-# edits to the repo take effect without a rebuild, and a named volume can't
-# shadow them). The COPYs are kept so a plain `docker run` (no compose) still
-# ships a working config + brief.
+# The operator brief lives at ~/.claude/CLAUDE.md. In compose it's also bind-
+# mounted read-only from the repo (the named claude-config volume can't shadow a
+# more-specific file bind), so the COPY here is the fallback for a plain
+# `docker run`.
+#
+# The MCP config is trickier: claude reads it from the WORKDIR
+# (~/workspace/.mcp.json), but that dir is bind-mounted in compose and Docker
+# can't reliably mount a single file inside a bind-mounted dir (and claude has
+# no config flag/env var to point elsewhere). So we stash the canonical copy
+# OUTSIDE the mount (/opt/kali-claude/mcp.json) and the entrypoint refreshes it
+# into the workspace on every start. Result: MCP servers register whether you
+# use compose or plain docker run, and the config always tracks the image/repo
+# (workspace/.mcp.json is derived state — edit the repo's copy and rebuild).
 RUN mkdir -p /home/operator/workspace /home/operator/loot /home/operator/.claude
-COPY --chown=operator:opgroup .mcp.json /home/operator/workspace/.mcp.json
 COPY --chown=operator:opgroup CLAUDE.md /home/operator/.claude/CLAUDE.md
+USER root
+RUN mkdir -p /opt/kali-claude
+COPY .mcp.json /opt/kali-claude/mcp.json
+COPY entrypoint.sh /usr/local/bin/entrypoint.sh
+RUN chmod +x /usr/local/bin/entrypoint.sh
+USER operator
 
+ENTRYPOINT ["/usr/local/bin/entrypoint.sh"]
 CMD ["/bin/bash"]
