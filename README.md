@@ -11,20 +11,26 @@ host's proxy if you want.
 
 ## What's inside
 
-- **Base**: `kalilinux/kali-bleeding-edge:latest`, full `dist-upgrade`
-- **Toolset**: `kali-linux-headless` (~200 pentest tools — nmap, sqlmap,
-  hydra, john, hashcat, metasploit, ffuf, mitmproxy, impacket, responder,
-  evil-winrm, certipy-ad, netexec, mimikatz, ...) plus targeted apt
-  extras (ProjectDiscovery suite, semgrep, gitleaks, trufflehog,
-  apktool, jadx, feroxbuster, ...)
-- **Runtime**: Node.js LTS, Claude Code CLI, Playwright + Chromium
-- **MCP servers** (via project-scoped `.mcp.json`):
+- **Base**: `kalilinux/kali-bleeding-edge` pinned by digest, full `dist-upgrade`
+- **Toolset**: `kali-linux-headless` (typically ~200 pentest tools — nmap,
+  sqlmap, hydra, john, hashcat, metasploit, ffuf, mitmproxy, impacket,
+  responder, evil-winrm, certipy-ad, netexec, mimikatz, ...) plus targeted apt
+  extras (ProjectDiscovery suite, semgrep, gitleaks, trufflehog, apktool, jadx,
+  feroxbuster, ...). Exact membership floats with the rolling base; run
+  `dpkg -l` in the container for the authoritative list.
+- **Runtime**: Node.js LTS, Claude Code CLI, Playwright + Chromium (npm/pipx
+  packages pinned to exact versions for reproducible rebuilds)
+- **MCP servers** (project-scoped `.mcp.json` refreshed into the workspace by
+  the image entrypoint on each start, installed into the image and invoked by
+  binary name — no runtime download):
   - `@playwright/mcp` — headless browser automation
   - `@wonderwhy-er/desktop-commander` — extended fs/shell ops
-- **Operator brief**: `CLAUDE.md` baked into the image so Claude knows
-  the full toolkit by attack phase on session start
-- **User**: non-root `operator` with passwordless `sudo`
-- **Caps**: `NET_RAW`, `NET_ADMIN`, `SYS_PTRACE`
+- **Operator brief**: `CLAUDE.md` mounted read-only from the repo (and baked
+  into the image as a fallback) so Claude knows the full toolkit by attack
+  phase on session start
+- **User**: non-root `operator` with passwordless `sudo` (a cosmetic boundary —
+  see Authorization), `cap_net_raw` on nmap/masscan so common scans need no sudo
+- **Caps**: `NET_RAW`, `NET_ADMIN` (`SYS_PTRACE` opt-in for RE sessions)
 
 ## Requirements
 
@@ -35,11 +41,12 @@ host's proxy if you want.
 ## Quick start
 
 ```bash
-git clone <this-repo> kali-claude
+git clone https://github.com/<your-org>/kali-claude.git   # replace with the real URL
 cd kali-claude
 
 cp .env.example .env
-# edit .env, add your ANTHROPIC_API_KEY
+# edit .env, add your ANTHROPIC_API_KEY (optional — you can also just run
+# `claude` and log in interactively; auth persists in the claude-config volume)
 
 mkdir -p workspace loot
 
@@ -95,10 +102,13 @@ across container restarts so you don't re-login each time.
 ```
 .
 ├── Dockerfile             # base + tools + Node + MCP servers
-├── docker-compose.yml     # caps, networking, volumes
-├── .mcp.json              # MCP server registrations
-├── CLAUDE.md              # operator brief loaded by Claude on start
+├── docker-compose.yml     # caps, networking, volumes, mounts
+├── entrypoint.sh          # refreshes .mcp.json into the workspace on container start
+├── .mcp.json              # MCP server registrations (canonical copy; refreshed into ~/workspace at startup)
+├── CLAUDE.md              # operator brief (bind-mounted read-only into the image's ~/.claude)
 ├── .env.example           # template for local secrets (gitignored)
+├── .gitignore             # keeps engagement output + secrets out of git
+├── LICENSE                # MIT
 ├── workspace/             # bind-mounted into container (gitignored)
 └── loot/                  # bind-mounted output dir (gitignored)
 ```
@@ -106,10 +116,19 @@ across container restarts so you don't re-login each time.
 ## Authorization
 
 Use only against targets you have written permission to test. The
-included `CLAUDE.md` instructs Claude to refuse out-of-scope targets
-and to demonstrate impact without harm (`id`/`whoami`, not shells;
-`alert(1)`, not cookie theft). That's a guardrail, not a contract —
-the operator is responsible for staying inside scope.
+included `CLAUDE.md` (mounted read-only, so it tracks the repo and can't be
+silently edited from inside the container) instructs Claude to refuse
+out-of-scope targets and to demonstrate impact without harm (`id`/`whoami`, not
+shells; `alert(1)`, not cookie theft). That's a soft prompt-level guardrail, not
+a contract — the operator is responsible for staying inside scope.
+
+Treat the container as **root-equivalent and disposable**. The `operator` user
+has passwordless `sudo ALL`, so the non-root user is not a security boundary;
+the container boundary is. Don't run it on a host or network you aren't willing
+to expose to the tools (and to whatever the agent does with them). The
+`ANTHROPIC_API_KEY`, if passed via env, is readable by every process in the
+container — prefer interactive `claude` login, and rotate the key after risky
+engagements.
 
 ## License
 

@@ -1,12 +1,12 @@
 {
   "mcpServers": {
     "playwright": {
-      "command": "npx",
-      "args": ["-y", "@playwright/mcp@latest", "--headless", "--isolated"]
+      "command": "playwright-mcp",
+      "args": ["--headless", "--isolated"]
     },
     "shell": {
-      "command": "npx",
-      "args": ["-y", "@wonderwhy-er/desktop-commander@latest"]
+      "command": "desktop-commander",
+      "args": []
     }
   }
 }

@@ -2,6 +2,9 @@
 
 Authorized offensive security workstation. You run as `operator` with
 passwordless `sudo` for raw sockets / low ports / package install.
+`nmap`/`masscan` already carry `cap_net_raw`, so `-sS` and similar need no
+`sudo`. The `operator`/root split is cosmetic (passwordless `sudo ALL`) — the
+isolation that matters is the container boundary, not this user.
 
 **Demonstrate impact without harm:** `id`/`whoami` not shells, `alert(1)`
 not cookie theft, `/etc/passwd` not user data. Out-of-scope target →
@@ -11,8 +14,12 @@ refuse, ask operator. No data exfil — minimal proof bytes only.
 
 ## Tool inventory by attack phase
 
-Everything below is on `$PATH`. When a category lists multiple tools,
-pick the one whose strengths fit the target — don't run them all.
+Most tools below are on `$PATH` via `kali-linux-headless` or the explicit
+installs in the Dockerfile. Items tagged `(if present)`, and the pipe-friendly
+helpers in the "Filtering / chaining" section, may NOT be installed — verify
+with `command -v <tool>` before relying on one, and install on demand if
+missing. When a category lists multiple tools, pick the one whose strengths fit
+the target — don't run them all.
 
 ### Recon: passive subdomain & OSINT
 `subfinder` `assetfinder` `findomain` `amass` `theharvester` `recon-ng`
@@ -48,7 +55,7 @@ pick the one whose strengths fit the target — don't run them all.
     `Fuzzing/special-chars.txt`
 
 ### Web vuln scanning
-- Generic: `nuclei` (templates at `$NUCLEI_TEMPLATES`, pre-pulled)
+- Generic: `nuclei` (templates pre-pulled at `~/nuclei-templates`)
 - SQLi: `sqlmap` `commix` (cmd-injection)
 - XSS: `dalfox` (if present) `xsstrike` `kxss` (if present)
 - CMS: `wpscan` `whatweb` `cmseek`
@@ -153,16 +160,19 @@ Toolkit) `webshells` `weevely` (PHP) `laudanum` (multi-language webshells)
 - **Chain via pipes**: `subfinder -d X -silent | dnsx -silent | httpx-toolkit -silent -tech-detect | nuclei`
 - **Save evidence** under `~/loot/<target>/` with timestamped filenames
   (`nmap-tcp-$(date +%s).txt`).
-- **OOB testing**: start `interactsh-client` first, paste the URL into
-  payloads, monitor callbacks live.
-- **Categorize URL piles** with `gf`: `cat urls.txt | gf xss`, `gf ssrf`,
-  `gf sqli`, `gf redirect`. Patterns at `~/.gf/`.
+- **OOB testing**: `interactsh-client` (if present — `command -v
+  interactsh-client`; install via go-builder if missing) first, paste the URL
+  into payloads, monitor callbacks live.
+- **Categorize URL piles** with `gf` (if present; install via go-builder, then
+  seed `~/.gf/` with Gf-Patterns): `cat urls.txt | gf xss`, `gf ssrf`,
+  `gf sqli`, `gf redirect`.
 - **Templates updates** for long engagements: `nuclei -ut`.
 - **Inspect/tamper traffic**: start `mitmweb` inside the container, point
   CLI tools at `http://127.0.0.1:8080`. Browser UI on host:8081 if the
   port is forwarded. No host proxy needed.
-- **Privilege**: `sudo` only when needed (`nmap -sS`, raw sockets,
-  binding <1024). Default to unprivileged.
+- **Privilege**: `nmap`/`masscan` have `cap_net_raw` so `-sS` needs no `sudo`;
+  reach for `sudo` only for other raw sockets / binding <1024 / package
+  install. Default to unprivileged.
 
 ## Hard rules
 
